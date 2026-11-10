@@ -1,0 +1,30 @@
+{
+  "name": "示例项目",
+  "tail": 1.0,
+  "lines": [
+    "你是不是也觉得自己怎么吃都不长肉？",
+    "手腕细、肩膀窄，一照镜子就泄气。",
+    "其实是热量盈余不够。",
+    "一天要吃够三百克碳水，",
+    "相当于五六碗大米饭。",
+    "吃不下怎么办？",
+    "用增肌粉来加餐，就是很好的办法。",
+    "现在下单立减一百，",
+    "想变壮的兄弟，抓紧冲！"
+  ],
+  "shots": [
+    {"name": "S01", "line": 0, "enter": "open"},
+    {"name": "S02", "line": 1, "enter": "hard"},
+    {"name": "S03", "line": 2, "enter": "zoom"},
+    {"name": "S04", "line": 3, "enter": "hard",
+     "design": {"type": "gold", "text": "300g", "label": "优质碳水", "delay": 0.45}},
+    {"name": "S05", "line": 4, "enter": "white"},
+    {"name": "S06", "line": 5, "enter": "hwhip"},
+    {"name": "S07", "line": 6, "enter": "longwhite",
+     "card": {"img": "cards/product.jpg", "delay": 0.2, "width": 820}},
+    {"name": "S08", "line": 7, "enter": "zoom",
+     "design": {"type": "coupon", "label": "立减", "number": "100", "delay": 0.4, "y": 1180}},
+    {"name": "S09", "line": 8, "enter": "hard", "ss": 1.0, "arrow": true}
+  ],
+  "bgm": {"file": "bgm/bgm.mp3", "bar": 1.705, "drop": 17.95, "drop_shot": "S07"}
+}
