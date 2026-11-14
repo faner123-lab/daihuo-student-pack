@@ -4,6 +4,13 @@
 #   python3 render.py 项目文件夹 --dur vo/dur.txt     有配音：按 dur.txt 每句时长对点（秒，已含变速）
 #   python3 render.py 项目文件夹 --quick S05,S06      只渲染指定镜头，快速看效果
 # 项目文件夹里要有：project.json、clips/（H3 片段，如 S01.mp4）、可选 cards/（贴图原图）
+# 干货科普用的可选项（都不写就是原来的带货效果）：
+#   project.json 顶层  "style": {"accent":[255,90,40], "highlight":["核心","腹肌"]}   强调色、字幕里要染成强调色的词
+#                     "lines_en": ["英文第1句", ...]                                   有就出中英双语字幕（和 lines 一一对应）
+#                     "progress": {"total": 6, "label": "ROUND"}                       有就在带 step 的镜头显示进度条
+#                     "transition_scale": 1.8                                           转场放慢（默认 1.0；干货建议 1.8）
+#   每个镜头里        "title":"钩子标题"  "step":2  "numcard":{"text":"30","label":"秒 / 组","delay":0.3,"y":700}
+#                     "keywords":[{"text":"核心","at":0.6,"dur":1.3,"y":560}]
 import sys, os, re, math, json, subprocess
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
@@ -18,6 +25,10 @@ if not args:
 WORK = os.path.abspath(args[0]); OUT = os.path.join(WORK, "out"); os.makedirs(OUT, exist_ok=True)
 CFG = json.load(open(os.path.join(WORK, "project.json"), encoding="utf-8"))
 LINES = CFG["lines"]; N = len(LINES)
+TS = float(CFG.get("transition_scale", 1.0))   # 转场速度倍率，干货片建议 1.8（单个转场约 0.35–0.4 秒）
+STYLE = CFG.get("style", {}); ACC = tuple(STYLE.get("accent", [255, 90, 40])); HL = STYLE.get("highlight", [])
+LINES_EN = CFG.get("lines_en"); PROG = CFG.get("progress")
+if LINES_EN and len(LINES_EN) != N: sys.exit("lines_en 的句数要和 lines 一样（%d 句）" % N)
 DUR_FILE = args[args.index("--dur") + 1] if "--dur" in args else None
 ONLY = args[args.index("--quick") + 1].split(",") if "--quick" in args else None
 
@@ -49,7 +60,8 @@ for sh in CFG["shots"]:
     a, b = win(sh["line"])
     SHOTS.append(dict(name=sh["name"], k=sh["line"], t0=a + (b - a) * sh.get("frac", 0), clip=sh.get("clip", sh["name"]),
                       ss=sh.get("ss", 0.0), enter=sh.get("enter", "hard"), card=sh.get("card"), design=sh.get("design"),
-                      arrow=sh.get("arrow", False), sfx=sh.get("sfx", [])))
+                      arrow=sh.get("arrow", False), sfx=sh.get("sfx", []), title=sh.get("title"), step=sh.get("step"),
+                      numcard=sh.get("numcard"), keywords=sh.get("keywords", [])))
 for i, s in enumerate(SHOTS):
     s["t1"] = SHOTS[i + 1]["t0"] if i + 1 < len(SHOTS) else END
     s["dur"] = s["t1"] - s["t0"]
@@ -71,18 +83,42 @@ def phrases(k):
     parts = [c for p in re.split(r"[，。！？]", LINES[k]) if p for c in chunks(p.replace("、", " "))]
     a, b = seg[k]; tot = sum(tw_units(p) for p in parts); out = []; t0 = a
     for p in parts:
-        d = (b - a) * tw_units(p) / tot; out.append((t0, t0 + d + (0.1 if p == parts[-1] else 0), p)); t0 += d
+        d = (b - a) * tw_units(p) / tot; out.append((t0, t0 + d + (0.1 if p == parts[-1] else 0), p, LINES_EN[k] if LINES_EN else None)); t0 += d
     return out
 SUBS = [x for k in range(N) for x in phrases(k)]
 FS = DC.load_font(80, black=False)
 SUB_BOTTOM = 290
 _subcache = {}
-def sub_img(txt):
-    if txt in _subcache: return _subcache[txt]
-    im = Image.new("RGBA", (W, 130), (0, 0, 0, 0)); d = ImageDraw.Draw(im); tw = d.textlength(txt, font=FS)
-    d.text(((W - tw) / 2 + 3, 13), txt, font=FS, fill=(0, 0, 0, 150), stroke_width=8, stroke_fill=(0, 0, 0, 150))
-    d.text(((W - tw) / 2, 10), txt, font=FS, fill=(255, 255, 255, 255), stroke_width=8, stroke_fill=(0, 0, 0, 255))
-    _subcache[txt] = im; return im
+FE = {}
+def _hl_mask(txt):
+    m = [False] * len(txt)
+    for w in HL:
+        i = txt.find(w)
+        while i >= 0:
+            for j in range(i, i + len(w)): m[j] = True
+            i = txt.find(w, i + len(w))
+    return m
+def sub_img(txt, en=None):
+    key = (txt, en)
+    if key in _subcache: return _subcache[key]
+    im = Image.new("RGBA", (W, 130 + (80 if en else 0)), (0, 0, 0, 0)); d = ImageDraw.Draw(im); tw = d.textlength(txt, font=FS)
+    x0 = (W - tw) / 2
+    d.text((x0 + 3, 13), txt, font=FS, fill=(0, 0, 0, 150), stroke_width=8, stroke_fill=(0, 0, 0, 150))
+    d.text((x0, 10), txt, font=FS, fill=(255, 255, 255, 255), stroke_width=8, stroke_fill=(0, 0, 0, 255))   # 先画黑边
+    m = _hl_mask(txt)
+    for i, ch in enumerate(txt):                                   # 再逐字上色：重点词染成强调色
+        col = tuple(ACC) + (255,) if m[i] else (255, 255, 255, 255)
+        d.text((x0 + d.textlength(txt[:i], font=FS), 10), ch, font=FS, fill=col)
+    if en:
+        size = 46
+        while size > 28:
+            if size not in FE: FE[size] = DC.load_font(size, black=False)
+            if d.textlength(en, font=FE[size]) <= W - 90: break
+            size -= 2
+        if size not in FE: FE[size] = DC.load_font(size, black=False)
+        f = FE[size]; ew = d.textlength(en, font=f)
+        d.text(((W - ew) / 2, 142), en, font=f, fill=(255, 255, 255, 235), stroke_width=6, stroke_fill=(0, 0, 0, 255))
+    _subcache[key] = im; return im
 
 # ---------- 贴图 ----------
 def card(path, width):
@@ -121,6 +157,7 @@ def zoomc(im, z, dx=0):
 def enter_fx(fr, kind, t):
     """进场转场：hard/open 硬切；zoom 放大冲击；push 推近模糊；hwhip 甩镜；white/longwhite 白闪；black 黑场亮起"""
     if kind in ("hard", "open"): return fr
+    t = t / TS      # 转场整体放慢：TS=1.8 时 0.2 秒的转场变成约 0.36 秒
     if kind == "zoom" and t < 0.2: return zoomc(fr, 1.10 - 0.10 * eo(t / 0.2))
     if kind == "push" and t < 0.22:
         k = eo(t / 0.22); fr = zoomc(fr, 1.38 - 0.38 * k)
@@ -143,6 +180,10 @@ def render(s, enc, is_last):
     c_im = card(cd["img"], cd.get("width", 820)) if cd else None
     d_im = DC.build(ds) if ds else None
     d_tag = bool(ds) and ds["type"] == "timejump"       # 时间跳转标题放左上，其余居中弹出
+    t_im = DC.title_banner(s["title"], accent=ACC) if s.get("title") else None
+    p_im = DC.progress_bar(s["step"], PROG["total"], PROG.get("label", "ROUND"), accent=ACC) if (s.get("step") and PROG) else None
+    n_im = DC.numcard(s["numcard"]["text"], s["numcard"].get("label", ""), accent=ACC) if s.get("numcard") else None
+    k_ims = [(k, DC.keyword(k["text"], accent=ACC)) for k in s.get("keywords", [])]
     for i in range(n):
         t = i / FPS; rem = dur - t
         fr = zoomc(frames[i], 1.0 + 0.06 * t / max(dur, 0.5))   # 每镜 6% 缓推
@@ -159,15 +200,24 @@ def render(s, enc, is_last):
                 k = eo((t - dl) / 0.3); paste_c(fr, d_im, 60 + d_im.width / 2 - 120 * (1 - k), ds.get("y", 300), 1.0, k)
             elif not d_tag and t > dl:
                 lt = t - dl; paste_c(fr, d_im, W / 2, ds.get("y", 820), 0.5 + 0.5 * eb(lt / 0.28), min(1, lt / 0.08))
+        if p_im is not None: paste_c(fr, p_im, W / 2, 120 + p_im.height / 2, 1.0, min(1, t / 0.2))       # 进度条：顶部
+        if t_im is not None:                                                                          # 钩子标题：进度条下面，淡入下滑
+            k = eo(t / 0.3); paste_c(fr, t_im, W / 2, 330 + (0 if p_im is None else 0) - 30 * (1 - k), 0.8 + 0.2 * eb(t / 0.35), k * (min(1, rem / 0.15) if rem < 0.15 else 1))
+        if n_im is not None and t > s["numcard"].get("delay", 0.3):                                   # 数字卡：弹出
+            lt = t - s["numcard"].get("delay", 0.3); paste_c(fr, n_im, W / 2, s["numcard"].get("y", 760), 0.5 + 0.5 * eb(lt / 0.3), min(1, lt / 0.08))
+        for kw, im_k in k_ims:                                                                        # 关键词跳出：弹出、停留、淡出
+            a0 = kw.get("at", 0.5); dd = kw.get("dur", 1.3); lt = t - a0
+            if 0 <= lt < dd:
+                fade = min(1, (dd - lt) / 0.2); paste_c(fr, im_k, W / 2, kw.get("y", 560), 0.5 + 0.5 * eb(lt / 0.25), min(1, lt / 0.08) * fade)
         if s["arrow"] and t > 0.3:                                    # 红色向下箭头（放在字幕上方）
             k = eo((t - 0.3) / 0.25); lay = Image.new("RGBA", (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(lay)
             y = 960 + 14 * math.sin(t * 8); x = 150
             dd.rectangle((x - 30, y - 120, x + 30, y), fill=(235, 30, 30, int(255 * k)))
             dd.polygon([(x - 80, y), (x + 80, y), (x, y + 110)], fill=(235, 30, 30, int(255 * k))); fr.alpha_composite(lay)
         T = s["t0"] + t
-        for (a, b, txt) in SUBS:
+        for (a, b, txt, en) in SUBS:
             if a <= T < b:
-                im = sub_img(txt); fr.alpha_composite(im, (0, int(H - SUB_BOTTOM - im.height))); break
+                im = sub_img(txt, en); fr.alpha_composite(im, (0, int(H - SUB_BOTTOM - 130))); break
         if is_last and rem < 0.6: fr = Image.blend(Image.new("RGBA", (W, H), (0, 0, 0, 255)), fr, max(0, rem / 0.6))
         enc.stdin.write(fr.convert("RGB").tobytes())
 

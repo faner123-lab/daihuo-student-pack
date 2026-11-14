@@ -53,6 +53,10 @@ for sh in CFG["shots"]:                              # 贴卡出现配“叮”�
     if sh.get("card"): add("叮_收银机提示音1.wav", t0 + sh["card"].get("delay", 0.15) + 0.05, .5)
     if sh.get("design"): add("字幕音效_嘭.wav", t0 + sh["design"].get("delay", 0.4) + 0.05, .55)
     if sh.get("arrow"): add("重击_短促.wav", t0 + 0.3, .6)
+    if sh.get("title"): add("咻的一声.wav", t0 + 0.05, .35)                                   # 干货：钩子标题滑入
+    if sh.get("numcard"): add("字幕音效_嘭.wav", t0 + sh["numcard"].get("delay", 0.3) + 0.05, .5)   # 数字卡弹出
+    for kw in sh.get("keywords", []):                                                          # 关键词弹出（"sound": false 可关掉）
+        if kw.get("sound", True): add("字幕音效_嘭.wav", t0 + kw.get("at", 0.5) + 0.05, .4)
 sfx = sfx[:n]; fade = int(.5 * SR); sfx[-fade:] *= np.linspace(1, 0, fade)
 
 # ---- 配音：把 vo/01.wav… 按 render.py 的时间轴摆好 ----

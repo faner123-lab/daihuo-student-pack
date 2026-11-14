@@ -144,3 +144,58 @@ def build(spec):
     """spec 例：{"type":"coupon","label":"立减","number":"100"}"""
     kw = {k: v for k, v in spec.items() if k not in ("type", "delay", "y")}
     return BUILDERS[spec["type"]](**kw)
+
+
+# ================= 干货科普用的元素（accent 是强调色 (R,G,B)，每个项目可以自己定）=================
+def _stroke_text(text, size, fill, stroke, stroke_col=(0, 0, 0, 255), black=True, pad=14):
+    f = load_font(size, black=black)
+    tmp = ImageDraw.Draw(Image.new("RGBA", (10, 10)))
+    w = int(tmp.textlength(text, font=f)) + 2 * (stroke + pad)
+    h = int(size * 1.3) + 2 * (stroke + pad)
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.text((stroke + pad + 3, stroke + pad + 4), text, font=f, fill=(0, 0, 0, 120), stroke_width=stroke, stroke_fill=(0, 0, 0, 120))
+    d.text((stroke + pad, stroke + pad), text, font=f, fill=fill, stroke_width=stroke, stroke_fill=stroke_col)
+    return im
+
+
+def title_banner(text, accent=(255, 90, 40), **_):
+    """钩子标题：顶部一条强调色底的大标题。text 太长会自动缩小字号，保证不出画面（宽度上限 1000）。"""
+    size = 96
+    while size > 48:
+        f = load_font(size)
+        if ImageDraw.Draw(Image.new("RGBA", (10, 10))).textlength(text, font=f) <= 900: break
+        size -= 6
+    t = _stroke_text(text, size, (255, 255, 255, 255), 8)
+    im = Image.new("RGBA", (t.width + 80, t.height + 36), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.rounded_rectangle((0, 0, im.width - 1, im.height - 1), 30, fill=tuple(accent) + (235,))
+    d.rounded_rectangle((6, 6, im.width - 7, im.height - 7), 26, outline=(255, 255, 255, 110), width=3)
+    im.alpha_composite(t, (40, 18)); return im
+
+
+def numcard(text="3", label="", accent=(255, 90, 40), **_):
+    """数字卡：大数字（强调色渐变）+ 下方小标签，例：text="30"，label="秒 / 组"。"""
+    lite = tuple(min(255, c + 90) for c in accent)
+    big = shear(grad_text(str(text), 230, lite, tuple(accent), stroke=12, stroke_col=(0, 0, 0)), -0.08)
+    if not label: return big
+    lab = _stroke_text(label, 64, (255, 255, 255, 255), 8, black=False)
+    im = Image.new("RGBA", (max(big.width, lab.width), big.height + lab.height - 10), (0, 0, 0, 0))
+    im.alpha_composite(big, ((im.width - big.width) // 2, 0)); im.alpha_composite(lab, ((im.width - lab.width) // 2, big.height - 10))
+    return im
+
+
+def keyword(text, accent=(255, 90, 40), size=118, **_):
+    """关键词跳出：强调色大字加黑边，出现时弹一下。"""
+    return _stroke_text(text, size, tuple(accent) + (255,), 10)
+
+
+def progress_bar(step, total, label="ROUND", accent=(255, 90, 40), **_):
+    """进度条：左上文字 “ROUND 2/6”，下面一条细进度条（宽 760）。step 从 1 开始。"""
+    Wb = 760
+    t = _stroke_text(f"{label} {step}/{total}", 50, (255, 255, 255, 255), 6, black=False, pad=8)
+    im = Image.new("RGBA", (Wb + 40, t.height + 34), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    im.alpha_composite(t, (14, 0)); y = t.height + 4
+    d.rounded_rectangle((20, y, 20 + Wb, y + 16), 8, fill=(0, 0, 0, 150))
+    fw = max(16, int(Wb * min(step, total) / float(total)))
+    d.rounded_rectangle((20, y, 20 + fw, y + 16), 8, fill=tuple(accent) + (255,))
+    d.rounded_rectangle((20, y, 20 + Wb, y + 16), 8, outline=(255, 255, 255, 120), width=2)
+    return im

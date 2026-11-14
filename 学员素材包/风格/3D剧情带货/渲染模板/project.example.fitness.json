@@ -1,0 +1,29 @@
+{
+  "name": "示例干货项目",
+  "tail": 1.0,
+  "transition_scale": 1.8,
+  "style": {"accent": [255, 90, 40], "highlight": ["核心", "腹肌", "三十秒"]},
+  "progress": {"total": 4, "label": "ROUND"},
+  "lines": [
+    "每天只练十分钟，也能练出腹肌。",
+    "关键是先把核心练稳。",
+    "平板支撑，一组三十秒。",
+    "做满四组，核心会明显变紧。",
+    "收藏起来，今天就练。"
+  ],
+  "lines_en": [
+    "Just ten minutes a day can build visible abs.",
+    "The key is to train a stable core first.",
+    "Plank for thirty seconds per set.",
+    "Finish four sets and your core gets tighter.",
+    "Save this and start training today."
+  ],
+  "shots": [
+    {"name": "S01", "line": 0, "enter": "open", "title": "每天十分钟 练出腹肌"},
+    {"name": "S02", "line": 1, "enter": "zoom", "keywords": [{"text": "核心", "at": 0.5, "dur": 1.4}]},
+    {"name": "S03", "line": 2, "enter": "hwhip", "step": 1, "numcard": {"text": "30", "label": "秒 / 组", "delay": 0.4, "y": 760}},
+    {"name": "S04", "line": 3, "enter": "white", "step": 4, "keywords": [{"text": "更紧", "at": 0.8, "dur": 1.2, "y": 620}]},
+    {"name": "S05", "line": 4, "enter": "black"}
+  ],
+  "bgm": {"file": "bgm/bgm.mp3"}
+}
