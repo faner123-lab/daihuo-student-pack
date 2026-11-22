@@ -1,0 +1,25 @@
+{
+  "name": "示例：墨线健身科普（自检用）",
+  "tail": 1.0,
+  "transition_scale": 1.0,
+  "highlight": ["核心", "三十秒", "腹肌"],
+  "steps": 3,
+  "memory": ["腹直肌", "腹横肌", "腹斜肌"],
+  "lines": [
+    "每天十分钟，也能练出腹肌。",
+    "第一个动作，平板支撑，核心要收紧。",
+    "第二个动作，卷腹，慢慢起来再慢慢放下。",
+    "第三个动作，侧桥，左右各三十秒。",
+    "收藏起来，今天就开始练。"
+  ],
+  "shots": [
+    {"name": "S01", "line": 0, "enter": "dim", "image": "imgs/pose1.png", "title": "每天十分钟 练出腹肌"},
+    {"name": "S02", "line": 1, "enter": "slide", "poses": ["imgs/pose1.png", "imgs/pose2.png"], "step": 1, "level": 0, "reps": "30秒",
+     "labels": [{"text": "核心收紧", "color": "yellow", "at": 0.4, "dur": 1.8}], "inset": {"u": 0.5, "v": 0.5, "r": 0.15, "at": 1.2, "dur": 1.8, "y": 520}, "tremble": true},
+    {"name": "S03", "line": 2, "enter": "zoom", "poses": ["imgs/pose2.png", "imgs/pose3.png"], "step": 2, "level": 1, "reps": "×12",
+     "labels": [{"text": "不要憋气", "color": "red", "at": 0.5, "dur": 1.6}, {"text": "慢起慢放", "color": "green", "at": 2.0, "dur": 1.6}]},
+    {"name": "S04", "line": 3, "enter": "flash", "image": "imgs/pose3.png", "step": 3, "level": 2, "labels": [{"text": "左右各30秒", "color": "yellow", "at": 0.8, "dur": 2.0}]},
+    {"name": "S05", "line": 4, "enter": "slide", "image": "imgs/pose1.png", "step": 3}
+  ],
+  "bgm": {"file": "bgm/bgm.mp3"}
+}
